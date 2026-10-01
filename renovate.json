@@ -2,5 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>hasansezertasan/renovate-config"
+  ],
+  "packageRules": [
+    {
+      "description": "Hold TypeScript below 6.1: @raycast/eslint-config and typescript-eslint declare peer typescript <6.1.0, so newer versions break npm install. Lift once they widen the range.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
+    }
   ]
 }
