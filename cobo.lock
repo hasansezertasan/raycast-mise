@@ -1,0 +1,19 @@
+version = 1
+
+[[fragment]]
+path = ".gitignore"
+source = "gitignore"
+update = true
+eol = "lf"
+
+  [[fragment.files]]
+  name = "Node"
+  path = "Node.gitignore"
+  commit = "0e5d690153ca3da8a4a1aef2d053406f408f531c"
+  blob = "1301e01e5873a3fe085e2d5756824ee9d9171133"
+
+  [[fragment.files]]
+  name = "macOS"
+  path = "Global/macOS.gitignore"
+  commit = "0e5d690153ca3da8a4a1aef2d053406f408f531c"
+  blob = "e5328c061b39eb6a3ab3a4310a2a0a0dfb3b2ec8"
