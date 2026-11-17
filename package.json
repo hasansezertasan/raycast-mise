@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "raycast-mise",
-  "title": "Raycast Mise Extension",
-  "description": "Raycast Mise Extension",
+  "title": "Mise Toolchain Inspector",
+  "description": "Browse installed mise tools, settings, environment variables and doctor output",
   "icon": "extension-icon.png",
   "author": "hasansezertasan",
   "platforms": [
@@ -10,48 +10,48 @@
     "Windows"
   ],
   "categories": [
-    "Other"
+    "Developer Tools"
   ],
   "license": "MIT",
   "commands": [
     {
       "name": "mise-list-all-tools",
-      "title": "Mise: List All Tools",
-      "subtitle": "List all tools in the Mise toolchain",
-      "description": "List all tools in the Mise toolchain",
+      "title": "List Installed Tools",
+      "subtitle": "Mise",
+      "description": "Browse installed mise tools, copy install paths and uninstall versions",
       "mode": "view"
     },
     {
       "name": "mise-show-settings",
-      "title": "Mise: Show Settings",
-      "subtitle": "Mise: Show Settings",
-      "description": "Mise: Show Settings",
+      "title": "Show Settings",
+      "subtitle": "Mise",
+      "description": "Browse the current mise settings",
       "mode": "view"
     },
     {
-      "name": "mise-show-detail",
-      "title": "Mise: Show Detail",
-      "subtitle": "Mise: Show Detail",
-      "description": "Mise: Show Detail",
+      "name": "mise-doctor",
+      "title": "Run Doctor",
+      "subtitle": "Mise",
+      "description": "Show the output of mise doctor",
       "mode": "view"
     },
     {
       "name": "mise-show-env-vars",
-      "title": "Mise: Show Environment Variables",
-      "subtitle": "Environment variables exported by mise",
-      "description": "Show the environment variables mise exports for the current shell",
+      "title": "Show Environment Variables",
+      "subtitle": "Mise",
+      "description": "Show the environment variables mise exports from your global config",
       "mode": "view"
     }
-    ],
-      "preferences": [
-        {
-          "name": "misePath",
-          "type": "textfield",
-          "required": false,
-          "title": "Mise Executable Path",
-          "description": "Set your mise executable path."
-        }
-      ],
+  ],
+  "preferences": [
+    {
+      "name": "misePath",
+      "type": "textfield",
+      "required": false,
+      "title": "Mise Executable Path",
+      "description": "Set your mise executable path."
+    }
+  ],
   "dependencies": {
     "@raycast/api": "^2.0.0",
     "@raycast/utils": "^2.0.0"

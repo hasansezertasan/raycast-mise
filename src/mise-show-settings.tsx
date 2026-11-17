@@ -1,5 +1,6 @@
-import { Action, ActionPanel, Icon, List } from "@raycast/api";
+import { Action, ActionPanel, Icon, Keyboard, List } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
+import { StateEmptyView } from "./lib/empty-view";
 import { getSettings } from "./lib/mise";
 
 function formatValue(value: unknown): string {
@@ -9,12 +10,13 @@ function formatValue(value: unknown): string {
 }
 
 export default function Command() {
-  const { isLoading, data, revalidate } = usePromise(getSettings);
+  const { isLoading, data, error, revalidate } = usePromise(getSettings);
 
   const entries = data ? Object.entries(data).sort(([a], [b]) => a.localeCompare(b)) : [];
 
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Filter settings…">
+      {!isLoading && <StateEmptyView error={error} emptyTitle="No Settings Found" onReload={revalidate} />}
       {entries.map(([key, value]) => {
         const text = formatValue(value);
         return (
@@ -27,7 +29,12 @@ export default function Command() {
               <ActionPanel>
                 <Action.CopyToClipboard title="Copy Value" content={text} />
                 <Action.CopyToClipboard title="Copy Key" content={key} />
-                <Action title="Reload" icon={Icon.ArrowClockwise} onAction={revalidate} />
+                <Action
+                  title="Reload"
+                  icon={Icon.ArrowClockwise}
+                  shortcut={Keyboard.Shortcut.Common.Refresh}
+                  onAction={revalidate}
+                />
               </ActionPanel>
             }
           />
