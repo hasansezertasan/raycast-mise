@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "raycast-mise",
-  "title": "Mise Toolchain Inspector",
-  "description": "Browse installed mise tools, settings, environment variables and doctor output",
+  "title": "Mise Dev Environment",
+  "description": "Manage mise tools, tasks, environment variables, settings, daemons and trust for each of your projects",
   "icon": "extension-icon.png",
   "author": "hasansezertasan",
   "platforms": [
@@ -15,32 +15,75 @@
   "license": "MIT",
   "commands": [
     {
-      "name": "mise-list-all-tools",
-      "title": "List Installed Tools",
+      "name": "tools",
+      "title": "Manage Tools",
       "subtitle": "Mise",
-      "description": "Browse installed mise tools, copy install paths and uninstall versions",
+      "description": "See the tools of a project, including missing ones, and install, use, upgrade, remove or uninstall them",
       "mode": "view"
     },
     {
-      "name": "mise-show-settings",
-      "title": "Show Settings",
+      "name": "use-tool",
+      "title": "Use Tool",
       "subtitle": "Mise",
-      "description": "Browse the current mise settings",
+      "description": "Search the mise registry and add a tool version to a project or your global config",
       "mode": "view"
     },
     {
-      "name": "mise-doctor",
-      "title": "Run Doctor",
+      "name": "tasks",
+      "title": "Run Task",
       "subtitle": "Mise",
-      "description": "Show the output of mise doctor",
+      "description": "Search the tasks of a project and run them, with arguments, in watch mode or forced",
       "mode": "view"
     },
     {
-      "name": "mise-show-env-vars",
+      "name": "create-task",
+      "title": "Create Task",
+      "subtitle": "Mise",
+      "description": "Create a TOML task or a file task in a project",
+      "mode": "view"
+    },
+    {
+      "name": "env-vars",
       "title": "Show Environment Variables",
       "subtitle": "Mise",
-      "description": "Show the environment variables mise exports from your global config",
+      "description": "See the environment variables mise sets for a project, where each comes from, and set new ones",
       "mode": "view"
+    },
+    {
+      "name": "settings",
+      "title": "Manage Settings",
+      "subtitle": "Mise",
+      "description": "See every mise setting with its effective value and change or reset it",
+      "mode": "view"
+    },
+    {
+      "name": "projects",
+      "title": "Manage Projects",
+      "subtitle": "Mise",
+      "description": "Choose and add projects, review and trust config files, and run install, fmt, lock, bootstrap and project checks",
+      "mode": "view"
+    },
+    {
+      "name": "daemons",
+      "title": "Manage Daemons",
+      "subtitle": "Mise",
+      "description": "Start, stop and restart the daemons of a project, follow their logs and open them in the browser",
+      "mode": "view"
+    },
+    {
+      "name": "doctor",
+      "title": "Run Doctor",
+      "subtitle": "Mise",
+      "description": "Show the output of mise doctor for a project",
+      "mode": "view"
+    },
+    {
+      "name": "menu-bar",
+      "title": "Mise Menu Bar",
+      "subtitle": "Mise",
+      "description": "Show missing tools and daemon status of the current project in the menu bar",
+      "mode": "menu-bar",
+      "interval": "10m"
     }
   ],
   "preferences": [
@@ -49,7 +92,16 @@
       "type": "textfield",
       "required": false,
       "title": "Mise Executable Path",
-      "description": "Set your mise executable path."
+      "description": "Path to the mise executable. Leave empty to find it automatically."
+    },
+    {
+      "name": "showEnvValues",
+      "type": "checkbox",
+      "required": false,
+      "default": false,
+      "title": "Environment Variables",
+      "label": "Show values by default",
+      "description": "Show environment variable values without revealing them one by one. Values can contain secrets."
     }
   ],
   "dependencies": {
