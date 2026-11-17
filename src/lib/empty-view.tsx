@@ -81,5 +81,18 @@ export function StateEmptyView({ error, emptyTitle, emptyDescription, onReload }
     );
   }
 
-  return <List.EmptyView icon={Icon.Tray} title={emptyTitle} description={emptyDescription} />;
+  return (
+    <List.EmptyView
+      icon={Icon.Tray}
+      title={emptyTitle}
+      description={emptyDescription}
+      actions={
+        onReload ? (
+          <ActionPanel>
+            <Action title="Reload" icon={Icon.ArrowClockwise} onAction={onReload} />
+          </ActionPanel>
+        ) : undefined
+      }
+    />
+  );
 }

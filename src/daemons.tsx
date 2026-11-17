@@ -99,7 +99,8 @@ export default function Command() {
   ) : null;
 
   function emptyView() {
-    if (isLoading) return null;
+    // with daemons listed, an empty screen means the search filtered them; Raycast shows "No Results"
+    if (isLoading || (!error && data && data.length > 0)) return null;
     if (!cwd) {
       return (
         <List.EmptyView

@@ -385,7 +385,7 @@ export default function Command() {
       searchBarPlaceholder={showAll ? "Filter installed versions…" : "Filter project tools…"}
       searchBarAccessory={<ProjectDropdown project={project} projects={projects} onChange={setProject} />}
     >
-      {!isLoading && (
+      {!isLoading && (error || rows.length === 0) && (
         <StateEmptyView
           error={error}
           emptyTitle={showAll ? "No Tools Installed" : "No Tools in This Project"}

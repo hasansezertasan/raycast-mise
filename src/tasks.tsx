@@ -460,7 +460,7 @@ export default function Command() {
         <StateEmptyView
           error={error}
           emptyTitle="No Tasks"
-          emptyDescription={`${projectLabel(project)} defines no tasks. Press ⌘N to create one.`}
+          emptyDescription={`${projectLabel(project)} defines no tasks. Use Create Task to add one.`}
           onReload={revalidate}
         />
       ) : null}

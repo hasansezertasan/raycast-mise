@@ -26,7 +26,7 @@ function ToolVersions({ tool, project, cwd }: { tool: MiseRegistryEntry } & Targ
       isLoading={isLoading}
       searchBarPlaceholder={`Filter ${tool.short} versions…`}
     >
-      {!isLoading && (
+      {!isLoading && (error || !data?.length) && (
         <StateEmptyView
           error={error}
           emptyTitle="No Versions Found"
@@ -85,7 +85,7 @@ export default function Command() {
       searchBarPlaceholder="Search the mise registry…"
       searchBarAccessory={<ProjectDropdown project={project} projects={projects} onChange={setProject} />}
     >
-      {!isLoading && (
+      {!isLoading && (error || !data?.length) && (
         <StateEmptyView
           error={error}
           emptyTitle="No Tools Found"

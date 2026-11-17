@@ -137,7 +137,9 @@ function ConfigFiles({ project }: { project: string }) {
 
   return (
     <List isLoading={isLoading} navigationTitle={`Config Files: ${projectLabel(project)}`}>
-      {!isLoading && <StateEmptyView error={error} emptyTitle="No Config Files" onReload={revalidate} />}
+      {!isLoading && (error || !data?.length) && (
+        <StateEmptyView error={error} emptyTitle="No Config Files" onReload={revalidate} />
+      )}
       {data?.map((file) => (
         <List.Item
           key={file.path}
