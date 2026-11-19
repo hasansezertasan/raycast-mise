@@ -13,7 +13,7 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { showFailureToast, usePromise } from "@raycast/utils";
+import { showFailureToast } from "@raycast/utils";
 import { useState } from "react";
 import { ProjectDropdown } from "./components/ProjectDropdown";
 import {
@@ -30,14 +30,14 @@ import {
 import { StateEmptyView } from "./lib/empty-view";
 import { getEnvExtended, MiseEnvEntry } from "./lib/mise";
 import { projectLabel, tildify } from "./lib/projects";
-import { useProject } from "./lib/use-project";
+import { useProject, useProjectPromise } from "./lib/use-project";
 
 const NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export default function Command() {
   const { showEnvValues } = getPreferenceValues<Preferences>();
   const { project, setProject, cwd, projects } = useProject();
-  const { isLoading, data, error, revalidate } = usePromise(getEnvExtended, [cwd]);
+  const { isLoading, data, error, revalidate } = useProjectPromise(getEnvExtended, cwd);
 
   // `showAll` is the list-wide mode; the sets hold per-variable exceptions to it
   const [showAll, setShowAll] = useState<boolean>(Boolean(showEnvValues));

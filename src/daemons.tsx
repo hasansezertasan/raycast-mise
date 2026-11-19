@@ -1,11 +1,11 @@
 import { Action, ActionPanel, Alert, Color, confirmAlert, Icon, Keyboard, List, showToast, Toast } from "@raycast/api";
-import { showFailureToast, usePromise } from "@raycast/utils";
+import { showFailureToast } from "@raycast/utils";
 import { StreamedRun } from "./components/StreamedRun";
 import { ProjectDropdown } from "./components/ProjectDropdown";
 import { StateEmptyView } from "./lib/empty-view";
 import { DAEMON_ENV, daemonAction, listDaemons, MiseDaemon, runMise } from "./lib/mise";
 import { tildify } from "./lib/projects";
-import { useProject } from "./lib/use-project";
+import { useProject, useProjectPromise } from "./lib/use-project";
 
 type DaemonAction = "start" | "stop" | "restart";
 
@@ -34,9 +34,9 @@ function isExperimentalError(error?: Error) {
 
 export default function Command() {
   const { project, setProject, cwd, projects } = useProject();
-  const { isLoading, data, error, revalidate } = usePromise(
+  const { isLoading, data, error, revalidate } = useProjectPromise(
     async (dir: string | undefined) => (dir ? listDaemons(dir) : []),
-    [cwd],
+    cwd,
   );
 
   async function act(action: DaemonAction, daemon?: MiseDaemon) {

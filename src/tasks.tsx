@@ -403,14 +403,17 @@ export default function Command() {
   const [showDetail, setShowDetail] = useCachedState("mise.tasks.showDetail", false);
 
   const {
-    data: tasks,
+    data: loaded,
     isLoading,
     error,
     revalidate,
-  } = useCachedPromise((dir: string | undefined, hidden: boolean) => listTasks(dir, hidden), [cwd, showHidden], {
-    keepPreviousData: true,
-    failureToastOptions: { title: "Could Not Load Tasks" },
-  });
+  } = useCachedPromise(
+    async (dir: string | undefined, hidden: boolean) => ({ dir, tasks: await listTasks(dir, hidden) }),
+    [cwd, showHidden],
+    { keepPreviousData: true, failureToastOptions: { title: "Could Not Load Tasks" } },
+  );
+  // keepPreviousData holds the last project's tasks while the new one loads; never run those here
+  const tasks = loaded && loaded.dir === cwd ? loaded.tasks : undefined;
 
   const sections = new Map<string, MiseTask[]>();
   for (const task of tasks ?? []) {

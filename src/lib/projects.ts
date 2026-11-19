@@ -1,8 +1,8 @@
 import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, sep } from "node:path";
+import { basename, dirname, sep } from "node:path";
 import { LocalStorage } from "@raycast/api";
-import { listTrackedConfigs } from "./mise";
+import { globalConfigDir, listTrackedConfigs } from "./mise";
 
 /** Sentinel for "no project": mise runs in the home directory and sees only global config. */
 export const GLOBAL_PROJECT = "__global__";
@@ -74,7 +74,7 @@ export async function removeAddedProject(path: string): Promise<void> {
 /** Global first, then folders you added, then folders mise has tracked configs in. */
 export async function loadProjects(): Promise<Project[]> {
   const home = homedir();
-  const globalConfigDir = join(home, ".config", "mise");
+  const globalDir = globalConfigDir();
   const [added, tracked] = await Promise.all([getAddedProjects(), listTrackedConfigs().catch(() => [] as string[])]);
 
   const seen = new Set<string>();
@@ -87,7 +87,7 @@ export async function loadProjects(): Promise<Project[]> {
   }
 
   const trackedRoots = tracked
-    .filter((config) => !config.startsWith(globalConfigDir + sep) && !config.startsWith("/etc/"))
+    .filter((config) => !config.startsWith(globalDir + sep) && !config.startsWith("/etc/"))
     .map(configRoot)
     .filter((root) => root !== home && isDirectory(root))
     .sort((a, b) => a.localeCompare(b));

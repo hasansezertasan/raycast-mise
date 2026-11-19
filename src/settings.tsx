@@ -14,7 +14,7 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { join, sep } from "node:path";
-import { showFailureToast, usePromise } from "@raycast/utils";
+import { showFailureToast } from "@raycast/utils";
 import { useState } from "react";
 import { ProjectDropdown } from "./components/ProjectDropdown";
 import { StateEmptyView } from "./lib/empty-view";
@@ -29,11 +29,11 @@ import {
   SettingRow,
   unsetSetting,
 } from "./lib/settings";
-import { useProject } from "./lib/use-project";
+import { useProject, useProjectPromise } from "./lib/use-project";
 
 export default function Command() {
   const { project, setProject, cwd, projects } = useProject();
-  const { isLoading, data, error, revalidate } = usePromise(listSettingRows, [cwd]);
+  const { isLoading, data, error, revalidate } = useProjectPromise(listSettingRows, cwd);
   const [isShowingDetail, setIsShowingDetail] = useState(false);
 
   const rows = data ?? [];

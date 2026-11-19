@@ -182,6 +182,8 @@ export function stopProcess(child: ChildProcess) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   try {
     if (!isWindows && child.pid) process.kill(-child.pid, "SIGTERM");
+    // Windows keeps a dead parent's children running, so end the whole tree
+    else if (child.pid) spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
     else child.kill();
   } catch {
     child.kill();
