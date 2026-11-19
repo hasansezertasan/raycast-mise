@@ -30,7 +30,7 @@ import {
 } from "./lib/mise";
 import { projectLabel, tildify } from "./lib/projects";
 import { toolRepoUrl } from "./lib/tools";
-import { useProject } from "./lib/use-project";
+import { useProject, useProjectPromise } from "./lib/use-project";
 
 interface ToolRow {
   key: string;
@@ -129,9 +129,9 @@ export default function Command() {
   );
   // `mise outdated` asks the network for the latest versions, so it loads after the list
   // and is best effort: it must not delay or break the list
-  const { data: outdatedMap, revalidate: revalidateOutdated } = usePromise(
+  const { data: outdatedMap, revalidate: revalidateOutdated } = useProjectPromise(
     (dir: string | undefined) => listOutdated(dir).catch((): Record<string, MiseOutdated> => ({})),
-    [cwd],
+    cwd,
   );
   const revalidate = () => {
     revalidateTools();

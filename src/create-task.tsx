@@ -10,12 +10,12 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { showFailureToast, useCachedPromise } from "@raycast/utils";
+import { showFailureToast } from "@raycast/utils";
 import { useState } from "react";
 import { listTasks } from "./lib/mise";
 import { GLOBAL_PROJECT, projectCwd, projectLabel } from "./lib/projects";
 import { createTask, validateTaskName, type TaskKind } from "./lib/tasks";
-import { useProject } from "./lib/use-project";
+import { useProject, useProjectPromise } from "./lib/use-project";
 
 interface FormValues {
   kind: TaskKind;
@@ -42,13 +42,10 @@ export function CreateTaskForm({ project: initialProject, onCreated }: CreateTas
   const [nameError, setNameError] = useState<string | undefined>();
   const [isSaving, setIsSaving] = useState(false);
 
-  const { data: existing = [], isLoading } = useCachedPromise(
-    (cwd?: string) => listTasks(cwd, true),
-    [projectCwd(project)],
-    {
-      keepPreviousData: true,
-      failureToastOptions: { title: "Could Not Load Existing Tasks" },
-    },
+  // only the selected project's tasks, so a dependency from the previous project cannot be picked
+  const { data: existing = [], isLoading } = useProjectPromise(
+    (cwd: string | undefined) => listTasks(cwd, true),
+    projectCwd(project),
   );
   const known = projects.some((p) => p.id === project);
 

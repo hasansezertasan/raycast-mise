@@ -1,8 +1,8 @@
 import { Color, Icon, launchCommand, LaunchType, MenuBarExtra, open, showHUD, showToast, Toast } from "@raycast/api";
-import { showFailureToast, usePromise } from "@raycast/utils";
+import { showFailureToast } from "@raycast/utils";
 import { listCurrentTools, listDaemons, listOutdated, MiseDaemon, runMise } from "./lib/mise";
 import { projectCwd, projectLabel } from "./lib/projects";
-import { useProject } from "./lib/use-project";
+import { useProject, useProjectPromise } from "./lib/use-project";
 
 interface Status {
   missing: string[];
@@ -36,7 +36,7 @@ async function openCommand(name: string) {
 export default function Command() {
   const { project, setProject, projects, isLoadingProjects } = useProject();
   const cwd = projectCwd(project);
-  const { isLoading, data, error, revalidate } = usePromise(loadStatus, [cwd]);
+  const { isLoading, data, error, revalidate } = useProjectPromise(loadStatus, cwd);
 
   const problems = (data?.missing.length ?? 0) + (error ? 1 : 0);
   const running = data?.daemons.filter((d) => /running|up|ready/i.test(d.status)).length ?? 0;
