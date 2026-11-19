@@ -132,7 +132,27 @@ interface UsageFieldProps {
   onChange: () => void;
 }
 
-function TaskArgsForm({ task, spec, cwd, project }: ProjectProps & { task: string; spec: UsageSpec }) {
+/** How a task is started: `mise run` with options, or `mise watch`. */
+interface RunMode {
+  /** everything before the task name, e.g. ["run", "--force"] or ["watch"] */
+  prefix: string[];
+  env?: Record<string, string>;
+}
+
+const PLAIN_RUN: RunMode = { prefix: ["run"] };
+
+function runTarget(task: string, mode: RunMode, extra: string[], cwd: string | undefined, project: string) {
+  const args = [...mode.prefix, task, ...extra];
+  return <StreamedRun title={`mise ${args.join(" ")}`} args={args} cwd={cwd} env={mode.env} project={project} />;
+}
+
+function TaskArgsForm({
+  task,
+  spec,
+  cwd,
+  project,
+  mode = PLAIN_RUN,
+}: ProjectProps & { task: string; spec: UsageSpec; mode?: RunMode }) {
   const { push } = useNavigation();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -147,8 +167,7 @@ function TaskArgsForm({ task, spec, cwd, project }: ProjectProps & { task: strin
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    const args = ["run", task, ...buildTaskArgs(spec, values)];
-    push(<StreamedRun title={`mise run ${task}`} args={args} cwd={cwd} project={project} />);
+    push(runTarget(task, mode, buildTaskArgs(spec, values), cwd, project));
   }
 
   const clear = (id: string) => () => setErrors((e) => ({ ...e, [id]: "" }));
@@ -294,9 +313,17 @@ function DependenciesView({ task, cwd }: { task?: string; cwd?: string }) {
 
 // ---------- Actions ----------
 
-function RunTaskAction({ task, cwd, project }: ProjectProps & { task: string }) {
+function RunTaskAction({
+  task,
+  cwd,
+  project,
+  title = "Run Task",
+  icon = Icon.Play,
+  mode = PLAIN_RUN,
+}: ProjectProps & { task: string; title?: string; icon?: Icon; mode?: RunMode }) {
   const { push } = useNavigation();
 
+  // every way of running a task asks for its usage arguments first, or mise rejects missing ones
   async function run() {
     const toast = await showToast({ style: Toast.Style.Animated, title: "Reading Task Arguments…" });
     try {
@@ -308,9 +335,9 @@ function RunTaskAction({ task, cwd, project }: ProjectProps & { task: string }) 
         flags: (cmd?.flags ?? []).filter((f) => !f.hide),
       };
       if (spec.args.length > 0 || spec.flags.length > 0) {
-        push(<TaskArgsForm task={task} spec={spec} cwd={cwd} project={project} />);
+        push(<TaskArgsForm task={task} spec={spec} cwd={cwd} project={project} mode={mode} />);
       } else {
-        push(<StreamedRun title={`mise run ${task}`} args={["run", task]} cwd={cwd} project={project} />);
+        push(runTarget(task, mode, [], cwd, project));
       }
     } catch (error) {
       toast.hide();
@@ -318,32 +345,7 @@ function RunTaskAction({ task, cwd, project }: ProjectProps & { task: string }) 
     }
   }
 
-  return <Action title="Run Task" icon={Icon.Play} onAction={run} />;
-}
-
-function RunVariantAction({
-  title,
-  icon,
-  args,
-  cwd,
-  project,
-  shortcut,
-  env,
-}: ProjectProps & {
-  title: string;
-  icon: Icon;
-  args: string[];
-  shortcut?: Keyboard.Shortcut;
-  env?: Record<string, string>;
-}) {
-  return (
-    <Action.Push
-      title={title}
-      icon={icon}
-      shortcut={shortcut}
-      target={<StreamedRun title={`mise ${args.join(" ")}`} args={args} cwd={cwd} env={env} project={project} />}
-    />
-  );
+  return <Action title={title} icon={icon} onAction={run} />;
 }
 
 async function clearTaskCache(task: string, cwd?: string) {
@@ -500,41 +502,45 @@ export default function Command() {
                   <ActionPanel>
                     <ActionPanel.Section>
                       <RunTaskAction task={task.name} cwd={cwd} project={project} />
-                      <RunVariantAction
+                      <RunTaskAction
+                        task={task.name}
+                        cwd={cwd}
+                        project={project}
                         title="Run Task Forced"
                         icon={Icon.Bolt}
-                        args={["run", "--force", task.name]}
+                        mode={{ prefix: ["run", "--force"] }}
+                      />
+                      <RunTaskAction
+                        task={task.name}
                         cwd={cwd}
                         project={project}
-                      />
-                      <RunVariantAction
                         title="Run Without Task Cache"
                         icon={Icon.XMarkCircle}
-                        args={["run", "--task-cache", "off", task.name]}
-                        cwd={cwd}
-                        env={EXPERIMENTAL_ENV}
-                        project={project}
+                        mode={{ prefix: ["run", "--task-cache", "off"], env: EXPERIMENTAL_ENV }}
                       />
-                      <RunVariantAction
+                      <RunTaskAction
+                        task={task.name}
+                        cwd={cwd}
+                        project={project}
                         title="Run Without Remote Task Cache"
                         icon={Icon.XMarkCircle}
-                        args={["run", "--no-cache", task.name]}
+                        mode={{ prefix: ["run", "--no-cache"] }}
+                      />
+                      <RunTaskAction
+                        task={task.name}
                         cwd={cwd}
                         project={project}
-                      />
-                      <RunVariantAction
                         title="Run in Watch Mode"
                         icon={Icon.Eye}
-                        args={["watch", task.name]}
+                        mode={{ prefix: ["watch"] }}
+                      />
+                      <RunTaskAction
+                        task={task.name}
                         cwd={cwd}
                         project={project}
-                      />
-                      <RunVariantAction
                         title="Dry Run"
                         icon={Icon.Clipboard}
-                        args={["run", "--dry-run", task.name]}
-                        cwd={cwd}
-                        project={project}
+                        mode={{ prefix: ["run", "--dry-run"] }}
                       />
                     </ActionPanel.Section>
                     <ActionPanel.Section>

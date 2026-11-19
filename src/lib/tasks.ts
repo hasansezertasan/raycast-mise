@@ -1,7 +1,6 @@
 import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
-import { runMiseJson } from "./mise";
+import { globalConfigDir, runMiseJson } from "./mise";
 
 export type TaskKind = "toml" | "file";
 
@@ -85,12 +84,17 @@ async function exists(path: string): Promise<boolean> {
 }
 
 async function createFileTask(task: NewTask): Promise<CreatedTask> {
-  const root = task.cwd === undefined ? join(homedir(), ".config", "mise", "tasks") : join(task.cwd, "mise-tasks");
-  const path = resolve(root, ...task.name.split(":"));
+  // global file tasks live in $MISE_CONFIG_DIR/tasks
+  const root = task.cwd === undefined ? join(globalConfigDir(), "tasks") : join(task.cwd, "mise-tasks");
+  // native mise on Windows needs no bash; it runs .ps1 file tasks with PowerShell
+  const windows = process.platform === "win32";
+  const parts = task.name.split(":");
+  if (windows) parts[parts.length - 1] += ".ps1";
+  const path = resolve(root, ...parts);
   if (!path.startsWith(resolve(root) + sep)) throw new Error("The task name points outside the task directory");
   if (await exists(path)) throw new Error(`${path} already exists`);
 
-  const header = ["#!/usr/bin/env bash"];
+  const header = [windows ? "#!/usr/bin/env pwsh" : "#!/usr/bin/env bash"];
   if (task.description) header.push(`#MISE description=${tomlString(task.description)}`);
   if (task.depends.length > 0) header.push(`#MISE depends=${JSON.stringify(task.depends)}`);
   if (task.hide) header.push("#MISE hide=true");

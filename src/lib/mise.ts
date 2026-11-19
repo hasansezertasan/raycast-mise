@@ -3,7 +3,8 @@ import { access, constants } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { promisify } from "node:util";
-import { getPreferenceValues } from "@raycast/api";
+import { environment, getPreferenceValues } from "@raycast/api";
+import { mkdirSync } from "node:fs";
 
 const execFileAsync = promisify(execFile);
 const isWindows = process.platform === "win32";
@@ -87,6 +88,26 @@ function miseEnv(bin: string, extra?: Record<string, string>): NodeJS.ProcessEnv
   return { ...process.env, PATH: parts.join(delimiter), NO_COLOR: "1", CLICOLOR: "0", ...extra };
 }
 
+/** The global config folder: MISE_CONFIG_DIR, else $XDG_CONFIG_HOME/mise, else ~/.config/mise. */
+export function globalConfigDir(): string {
+  return process.env.MISE_CONFIG_DIR ?? join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "mise");
+}
+
+/**
+ * Where mise runs for the Global context: an empty folder, with MISE_CEILING_PATHS set to it so mise
+ * does not pick up project configs from its parents (such as ~/mise.toml). Global config still loads.
+ */
+function globalContext(): { cwd: string; env: Record<string, string> } {
+  const dir = join(environment.supportPath, "global");
+  mkdirSync(dir, { recursive: true });
+  return { cwd: dir, env: { MISE_CEILING_PATHS: dir } };
+}
+
+function context(options: RunOptions): { cwd: string; env: NodeJS.ProcessEnv } {
+  const base = options.cwd ? { cwd: options.cwd, env: {} } : globalContext();
+  return { cwd: base.cwd, env: { ...base.env, ...options.env } };
+}
+
 export interface RunOptions {
   /** Directory mise runs in. Omit for the global context (home directory). */
   cwd?: string;
@@ -106,9 +127,10 @@ function lastLines(text: string, count = 6): string {
 export async function runMise(args: string[], options: RunOptions = {}): Promise<string> {
   const bin = await resolveMisePath();
   try {
+    const ctx = context(options);
     const { stdout } = await execFileAsync(bin, args, {
-      cwd: options.cwd ?? homedir(),
-      env: miseEnv(bin, options.env),
+      cwd: ctx.cwd,
+      env: miseEnv(bin, ctx.env as Record<string, string>),
       maxBuffer: MAX_BUFFER,
       windowsHide: true,
     });
@@ -137,9 +159,10 @@ export interface StreamHandlers {
 /** Start a long-running mise command and stream its combined output. */
 export async function spawnMise(args: string[], options: RunOptions, handlers: StreamHandlers): Promise<ChildProcess> {
   const bin = await resolveMisePath();
+  const ctx = context(options);
   const child = spawn(bin, args, {
-    cwd: options.cwd ?? homedir(),
-    env: miseEnv(bin, options.env),
+    cwd: ctx.cwd,
+    env: miseEnv(bin, ctx.env as Record<string, string>),
     // no stdin: a prompt fails instead of waiting forever for an answer nobody can type
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -378,5 +401,6 @@ export const listDaemons = (cwd: string) => runMiseJson<MiseDaemon[]>(["daemons"
 export async function daemonAction(action: "start" | "stop" | "restart", cwd: string, id?: string): Promise<void> {
   // starting needs the supervisor, so let pitchfork start it
   const env = action === "stop" ? DAEMON_ENV : { MISE_EXPERIMENTAL: "1" };
-  await runMise(["daemons", action, ...(id ? [id] : [])], { cwd, env });
+  // without a name mise picks only the default group; --all means every daemon of the project
+  await runMise(["daemons", action, ...(id ? [id] : ["--all"])], { cwd, env });
 }

@@ -13,12 +13,12 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import { showFailureToast, usePromise } from "@raycast/utils";
 import { useState } from "react";
 import { ProjectDropdown } from "./components/ProjectDropdown";
 import { StateEmptyView } from "./lib/empty-view";
+import { globalConfigDir } from "./lib/mise";
 import { tildify } from "./lib/projects";
 import {
   editableValue,
@@ -142,8 +142,12 @@ export default function Command() {
 async function resetSetting(row: SettingRow, cwd: string | undefined, onDone: () => void) {
   // `mise settings unset` can only edit the global config or the nearest project config (--local),
   // so a setting defined anywhere else has to be removed by hand
+  // `mise settings unset` edits ~/.config/mise/config.toml (global) or the nearest project config (--local)
   const local = !isGlobalConfig(row.source);
-  if (local && !(cwd && row.source && isNearestProjectConfig(row.source, cwd))) {
+  const writable = local
+    ? Boolean(cwd && row.source && isNearestProjectConfig(row.source, cwd))
+    : !row.source || row.source === join(globalConfigDir(), "config.toml");
+  if (!writable) {
     await showToast({
       style: Toast.Style.Failure,
       title: `Cannot reset ${row.key} here`,
@@ -176,11 +180,6 @@ function isNearestProjectConfig(source: string, cwd: string): boolean {
   return ["mise.toml", ".mise.toml", ".config/mise.toml", ".config/mise/config.toml", ".mise/config.toml"].includes(
     relative,
   );
-}
-
-/** The global config folder: MISE_CONFIG_DIR, else $XDG_CONFIG_HOME/mise, else ~/.config/mise. */
-function globalConfigDir(): string {
-  return process.env.MISE_CONFIG_DIR ?? join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "mise");
 }
 
 function isGlobalConfig(source?: string): boolean {
