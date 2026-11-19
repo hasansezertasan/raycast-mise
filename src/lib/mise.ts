@@ -330,7 +330,10 @@ export const getTaskInfo = (task: string, cwd?: string) => runMiseJson<MiseTaskI
 export const getTaskDeps = (task: string | undefined, cwd?: string) =>
   runMise(["tasks", "deps", ...(task ? [task] : [])], { cwd });
 
-export const getEnvExtended = (cwd?: string) => runMiseJson<MiseEnvExtended>(["env", "--json-extended"], { cwd });
+/** `--json-extended` loses to `--json`, so it must not go through runMiseJson (which appends `--json`). */
+export async function getEnvExtended(cwd?: string): Promise<MiseEnvExtended> {
+  return JSON.parse(await runMise(["env", "--json-extended"], { cwd })) as MiseEnvExtended;
+}
 export type MiseEnv = Record<string, string>;
 export const getEnv = (cwd?: string) => runMiseJson<MiseEnv>(["env"], { cwd });
 

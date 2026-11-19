@@ -28,7 +28,7 @@ import {
   runMise,
   uninstallTool,
 } from "./lib/mise";
-import { projectLabel } from "./lib/projects";
+import { projectLabel, tildify } from "./lib/projects";
 import { toolRepoUrl } from "./lib/tools";
 import { useProject } from "./lib/use-project";
 
@@ -120,9 +120,10 @@ export default function Command() {
   } = usePromise(
     async (dir: string | undefined, all: boolean) => {
       const tools = await (all ? listTools(dir) : listCurrentTools(dir));
-      return Object.entries(tools).flatMap(([name, installs]) =>
+      const loaded = Object.entries(tools).flatMap(([name, installs]) =>
         installs.map((install, idx) => ({ key: `${name}@${install.version}@${idx}`, name, install })),
       );
+      return { dir, all, rows: loaded };
     },
     [cwd, showAll],
   );
@@ -137,7 +138,9 @@ export default function Command() {
     revalidateOutdated();
   };
 
-  const rows: ToolRow[] = (data ?? []).map((row) => {
+  // while another project loads, the previous result is still in `data`; never show (or act on) it
+  const current = data && data.dir === cwd && data.all === showAll ? data.rows : [];
+  const rows: ToolRow[] = current.map((row) => {
     const o = outdatedMap?.[row.name];
     const isOutdated = o && (o.current === row.install.version || (!o.current && row.install.installed === false));
     return { ...row, outdated: isOutdated ? o : undefined };
@@ -166,13 +169,17 @@ export default function Command() {
   async function removeFromConfig(row: ToolRow) {
     const confirmed = await confirmAlert({
       title: `Remove ${row.name} from Config?`,
-      message: `This runs \`mise unuse ${row.name}\` for ${projectLabel(project)}. It edits the config file and removes unused installs.`,
+      message: row.install.source?.path
+        ? `This removes ${row.name} from ${tildify(row.install.source.path)} and removes unused installs.`
+        : `This runs \`mise unuse ${row.name}\` for ${projectLabel(project)}. It edits the config file and removes unused installs.`,
       primaryAction: { title: "Remove", style: Alert.ActionStyle.Destructive },
     });
     if (!confirmed) return false;
     const toast = await showToast({ style: Toast.Style.Animated, title: `Removing ${row.name}…` });
     try {
-      await runMise(["unuse", row.name], { cwd });
+      // name the file the tool comes from; mise's own choice skips override files
+      const path = row.install.source?.path;
+      await runMise(["unuse", ...(path ? ["--path", path] : []), row.name], { cwd });
       toast.style = Toast.Style.Success;
       toast.title = `Removed ${row.name}`;
       revalidate();
@@ -391,6 +398,14 @@ export default function Command() {
           emptyTitle={showAll ? "No Tools Installed" : "No Tools in This Project"}
           emptyDescription="Add one with the Use Tool command."
           onReload={revalidate}
+          extraActions={
+            // the switch also lives on each row, but an empty list has no rows
+            <Action
+              title={showAll ? "Show Project Tools" : "Show All Installed Versions"}
+              icon={showAll ? Icon.List : Icon.AppWindowList}
+              onAction={() => setShowAll((v) => !v)}
+            />
+          }
         />
       )}
       {groups.map((g) => {

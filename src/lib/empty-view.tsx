@@ -1,10 +1,15 @@
 import { Action, ActionPanel, Icon, List, openExtensionPreferences, showToast, Toast } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import type { ReactNode } from "react";
 import { MiseNotFoundError, runMise } from "./mise";
 
 /** mise refuses to load an untrusted config: "Config files in <path> are not trusted." */
 export function untrustedConfigPath(error?: Error): string | undefined {
-  return error?.message.match(/Config files? in (.+?) (?:are|is) not trusted/)?.[1];
+  const path = error?.message.match(/Config files? in (.+?) (?:are|is) not trusted/)?.[1];
+  // mise shortens the home folder to `~`; mise runs without a shell, so expand it here
+  return path?.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
 }
 
 async function trustConfig(path: string, onDone?: () => void) {
@@ -25,13 +30,15 @@ interface StateEmptyViewProps {
   emptyTitle: string;
   emptyDescription?: string;
   onReload?: () => void;
+  /** more actions for the empty state, e.g. a view switch */
+  extraActions?: ReactNode;
 }
 
 /**
  * Distinct empty states for a mise-backed list: mise missing, command failed, or no rows.
  * Raycast only shows it once loading has finished and the list has no items.
  */
-export function StateEmptyView({ error, emptyTitle, emptyDescription, onReload }: StateEmptyViewProps) {
+export function StateEmptyView({ error, emptyTitle, emptyDescription, onReload, extraActions }: StateEmptyViewProps) {
   if (error instanceof MiseNotFoundError) {
     return (
       <List.EmptyView
@@ -87,9 +94,10 @@ export function StateEmptyView({ error, emptyTitle, emptyDescription, onReload }
       title={emptyTitle}
       description={emptyDescription}
       actions={
-        onReload ? (
+        onReload || extraActions ? (
           <ActionPanel>
-            <Action title="Reload" icon={Icon.ArrowClockwise} onAction={onReload} />
+            {extraActions}
+            {onReload ? <Action title="Reload" icon={Icon.ArrowClockwise} onAction={onReload} /> : null}
           </ActionPanel>
         ) : undefined
       }

@@ -328,13 +328,20 @@ function RunVariantAction({
   cwd,
   project,
   shortcut,
-}: ProjectProps & { title: string; icon: Icon; args: string[]; shortcut?: Keyboard.Shortcut }) {
+  env,
+}: ProjectProps & {
+  title: string;
+  icon: Icon;
+  args: string[];
+  shortcut?: Keyboard.Shortcut;
+  env?: Record<string, string>;
+}) {
   return (
     <Action.Push
       title={title}
       icon={icon}
       shortcut={shortcut}
-      target={<StreamedRun title={`mise ${args.join(" ")}`} args={args} cwd={cwd} project={project} />}
+      target={<StreamedRun title={`mise ${args.join(" ")}`} args={args} cwd={cwd} env={env} project={project} />}
     />
   );
 }
@@ -501,6 +508,14 @@ export default function Command() {
                         project={project}
                       />
                       <RunVariantAction
+                        title="Run Without Task Cache"
+                        icon={Icon.XMarkCircle}
+                        args={["run", "--task-cache", "off", task.name]}
+                        cwd={cwd}
+                        env={EXPERIMENTAL_ENV}
+                        project={project}
+                      />
+                      <RunVariantAction
                         title="Run Without Remote Task Cache"
                         icon={Icon.XMarkCircle}
                         args={["run", "--no-cache", task.name]}
@@ -548,7 +563,12 @@ export default function Command() {
                       />
                     </ActionPanel.Section>
                     <ActionPanel.Section>
-                      <Action.Open title="Open Task Definition" target={file} />
+                      {task.file ? (
+                        // a file task is an executable script; opening it directly could run it
+                        <Action.OpenWith title="Open Task Definition with" path={file} />
+                      ) : (
+                        <Action.Open title="Open Task Definition" target={file} />
+                      )}
                       <Action.ShowInFinder path={file} />
                       <Action.CopyToClipboard
                         title="Copy Task Name"

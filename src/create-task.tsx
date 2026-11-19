@@ -1,4 +1,15 @@
-import { Action, ActionPanel, Form, Icon, open, popToRoot, showToast, Toast, useNavigation } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Form,
+  Icon,
+  open,
+  popToRoot,
+  showInFinder,
+  showToast,
+  Toast,
+  useNavigation,
+} from "@raycast/api";
 import { showFailureToast, useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import { listTasks } from "./lib/mise";
@@ -59,12 +70,17 @@ export function CreateTaskForm({ project: initialProject, onCreated }: CreateTas
         hide: values.hide,
         cwd: projectCwd(values.project),
       });
-      if (openAfter) await open(path);
+      // a file task is an executable script: `open` could run it, so reveal it instead
+      const reveal = () => (values.kind === "file" ? showInFinder(path) : open(path));
+      if (openAfter) await reveal();
       await showToast({
         style: Toast.Style.Success,
         title: "Created Task",
         message: name,
-        primaryAction: { title: "Open Task Definition", onAction: () => open(path) },
+        primaryAction: {
+          title: values.kind === "file" ? "Show in Finder" : "Open Task Definition",
+          onAction: () => reveal(),
+        },
       });
       if (onCreated) {
         onCreated();

@@ -13,7 +13,8 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { sep } from "node:path";
+import { homedir } from "node:os";
+import { join, sep } from "node:path";
 import { showFailureToast, usePromise } from "@raycast/utils";
 import { useState } from "react";
 import { ProjectDropdown } from "./components/ProjectDropdown";
@@ -177,10 +178,15 @@ function isNearestProjectConfig(source: string, cwd: string): boolean {
   );
 }
 
+/** The global config folder: MISE_CONFIG_DIR, else $XDG_CONFIG_HOME/mise, else ~/.config/mise. */
+function globalConfigDir(): string {
+  return process.env.MISE_CONFIG_DIR ?? join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "mise");
+}
+
 function isGlobalConfig(source?: string): boolean {
   if (!source) return true;
-  const normalized = source.replace(/\\/g, "/");
-  return /\/\.config\/mise\/(config(\.[^/]+)?\.toml)$/.test(normalized);
+  // anchored to the global folder, so a project's own .config/mise/config.toml is not mistaken for it
+  return source.startsWith(globalConfigDir() + sep);
 }
 
 function EditSettingForm({ row, cwd, onDone }: { row: SettingRow; cwd?: string; onDone: () => void }) {
