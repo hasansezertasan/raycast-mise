@@ -18,7 +18,7 @@ import { showFailureToast } from "@raycast/utils";
 import { useState } from "react";
 import { ProjectDropdown } from "./components/ProjectDropdown";
 import { StateEmptyView } from "./lib/empty-view";
-import { globalConfigDir } from "./lib/mise";
+import { globalConfigDir, runMise } from "./lib/mise";
 import { tildify } from "./lib/projects";
 import {
   editableValue,
@@ -164,14 +164,39 @@ async function resetSetting(row: SettingRow, cwd: string | undefined, onDone: ()
   if (!confirmed) return;
   const toast = await showToast({ style: Toast.Style.Animated, title: `Resetting ${row.key}` });
   try {
-    await unsetSetting(row.key, local, cwd);
+    const lost = await unsetSetting(row.key, local, cwd);
     toast.style = Toast.Style.Success;
     toast.title = `Reset ${row.key}`;
+    reportLostTrust(toast, lost, cwd, onDone);
     onDone();
   } catch (error) {
     await toast.hide();
     await showFailureToast(error, { title: `Could not reset ${row.key}` });
   }
+}
+
+/**
+ * In paranoid mode, `mise settings set --local` makes mise stop trusting the file it writes.
+ * Say so on the success toast, with an action to trust it again.
+ */
+function reportLostTrust(toast: Toast, lost: string[], cwd: string | undefined, onDone: () => void) {
+  if (lost.length === 0) return;
+  toast.message = `mise no longer trusts ${lost.map(tildify).join(", ")} (paranoid mode)`;
+  toast.primaryAction = {
+    title: "Trust Config Again",
+    onAction: async (t) => {
+      try {
+        for (const path of lost) await runMise(["trust", path], { cwd });
+        t.title = "Config trusted";
+        t.message = undefined;
+        t.primaryAction = undefined;
+        onDone();
+      } catch (error) {
+        await t.hide();
+        await showFailureToast(error, { title: "Could not trust the config" });
+      }
+    },
+  };
 }
 
 /** A config file of the project folder itself (not a parent folder, not a local or env-specific file). */
@@ -199,9 +224,10 @@ function EditSettingForm({ row, cwd, onDone }: { row: SettingRow; cwd?: string; 
     const value = isBoolean ? String(Boolean(values.checked)) : (values.value ?? "");
     const toast = await showToast({ style: Toast.Style.Animated, title: `Saving ${row.key}` });
     try {
-      await setSetting(row.key, value, local, cwd);
+      const lost = await setSetting(row.key, value, local, cwd);
       toast.style = Toast.Style.Success;
       toast.title = `Saved ${row.key}`;
+      reportLostTrust(toast, lost, cwd, onDone);
       onDone();
       pop();
     } catch (error) {

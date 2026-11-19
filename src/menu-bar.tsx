@@ -1,6 +1,16 @@
 import { Color, Icon, launchCommand, LaunchType, MenuBarExtra, open, showHUD, showToast, Toast } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
-import { listCurrentTools, listDaemons, listOutdated, MiseDaemon, runMise } from "./lib/mise";
+import {
+  checkMiseUpdate,
+  listCurrentTools,
+  listDaemons,
+  listOutdated,
+  MISE_CHANGELOG_URL,
+  MISE_UPDATE_DOCS_URL,
+  MiseDaemon,
+  MiseUpdate,
+  runMise,
+} from "./lib/mise";
 import { projectCwd, projectLabel } from "./lib/projects";
 import { useProject, useProjectPromise } from "./lib/use-project";
 
@@ -8,6 +18,7 @@ interface Status {
   missing: string[];
   outdated: { name: string; current: string | null; latest: string }[];
   daemons: MiseDaemon[];
+  update?: MiseUpdate;
 }
 
 async function loadStatus(cwd: string | undefined): Promise<Status> {
@@ -15,14 +26,15 @@ async function loadStatus(cwd: string | undefined): Promise<Status> {
   const missing = Object.entries(tools).flatMap(([name, installs]) =>
     installs.filter((i) => i.installed === false).map((i) => `${name}@${i.requested_version ?? i.version}`),
   );
-  const [outdated, daemons] = await Promise.all([
+  const [outdated, daemons, update] = await Promise.all([
     listOutdated(cwd)
       .then((o) => Object.values(o).map(({ name, current, latest }) => ({ name, current, latest })))
       .catch(() => []),
     // daemons are experimental and per project: show them only when they work
     cwd ? listDaemons(cwd).catch(() => [] as MiseDaemon[]) : Promise.resolve([] as MiseDaemon[]),
+    checkMiseUpdate().catch(() => undefined),
   ]);
-  return { missing, outdated, daemons };
+  return { missing, outdated, daemons, update };
 }
 
 async function openCommand(name: string) {
@@ -50,6 +62,19 @@ export default function Command() {
     } catch (e) {
       toast.hide();
       await showFailureToast(e, { title: "mise install failed" });
+    }
+    revalidate();
+  }
+
+  async function updateMise() {
+    const toast = await showToast({ style: Toast.Style.Animated, title: "Updating mise…" });
+    try {
+      await runMise(["self-update", "--yes"]);
+      toast.hide();
+      await showHUD("Updated mise");
+    } catch (e) {
+      toast.hide();
+      await showFailureToast(e, { title: "mise self-update failed" });
     }
     revalidate();
   }
@@ -101,6 +126,27 @@ export default function Command() {
               onAction={() => openCommand("tools")}
             />
           ))}
+        </MenuBarExtra.Section>
+      ) : null}
+
+      {data?.update ? (
+        <MenuBarExtra.Section title={`mise ${data.update.latest} Available`}>
+          {data.update.canSelfUpdate ? (
+            <MenuBarExtra.Item
+              title="Update Mise"
+              subtitle={`${data.update.current} → ${data.update.latest}`}
+              icon={Icon.ArrowUpCircle}
+              onAction={updateMise}
+            />
+          ) : (
+            <MenuBarExtra.Item
+              title="How to Update Mise"
+              subtitle={`${data.update.current} → ${data.update.latest}`}
+              icon={Icon.ArrowUpCircle}
+              onAction={() => open(MISE_UPDATE_DOCS_URL)}
+            />
+          )}
+          <MenuBarExtra.Item title="Show Changelog" icon={Icon.Document} onAction={() => open(MISE_CHANGELOG_URL)} />
         </MenuBarExtra.Section>
       ) : null}
 

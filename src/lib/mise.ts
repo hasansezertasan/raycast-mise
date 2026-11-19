@@ -85,7 +85,16 @@ function miseEnv(bin: string, extra?: Record<string, string>): NodeJS.ProcessEnv
   const current = process.env.PATH ?? "";
   const parts = [...current.split(delimiter).filter(Boolean)];
   for (const p of extraPaths) if (!parts.includes(p)) parts.push(p);
-  return { ...process.env, PATH: parts.join(delimiter), NO_COLOR: "1", CLICOLOR: "0", ...extra };
+  // the environment profile (mise.<env>.toml) chosen in the preferences, as if MISE_ENV were exported in a shell
+  const profile = getPreferenceValues<Preferences>().miseEnv?.trim();
+  return {
+    ...process.env,
+    PATH: parts.join(delimiter),
+    NO_COLOR: "1",
+    CLICOLOR: "0",
+    ...(profile ? { MISE_ENV: profile } : {}),
+    ...extra,
+  };
 }
 
 /** The global config folder: MISE_CONFIG_DIR, else $XDG_CONFIG_HOME/mise, else ~/.config/mise. */
@@ -394,6 +403,126 @@ export async function getTrustStatus(cwd: string): Promise<{ path: string; trust
     })
     .filter((x): x is { path: string; trusted: boolean } => Boolean(x));
 }
+
+/**
+ * Runs a write to a project's config files and reports the files it made lose their trust.
+ *
+ * In paranoid mode mise ties the trust of a file to its content, and some writes (`mise settings set --local`)
+ * do not renew it. A file trusted just before the write is trusted again when `trustOwnEdits` is on; a file
+ * already untrusted is left alone, since it may hold changes nobody reviewed.
+ */
+export async function keepingTrust(cwd: string, write: () => Promise<unknown>): Promise<string[]> {
+  const trusted = (list: { path: string; trusted: boolean }[]) => list.filter((t) => t.trusted).map((t) => t.path);
+  const before = trusted(await getTrustStatus(cwd).catch(() => []));
+  await write();
+  if (before.length === 0) return [];
+  const after = new Set(trusted(await getTrustStatus(cwd).catch(() => [])));
+  const lost = before.filter((path) => !after.has(path));
+  if (lost.length === 0 || !getPreferenceValues<Preferences>().trustOwnEdits) return lost;
+  const failed: string[] = [];
+  for (const path of lost) await runMise(["trust", path], { cwd }).catch(() => failed.push(path));
+  return failed;
+}
+
+/** An entry of `mise config explain --json` (mise 2026.10.14+): a key the file sets. */
+interface ConfigKeyExplanation {
+  key: string;
+  /** 1-based */
+  line: number;
+  description: string | null;
+  deprecated: boolean;
+  /** whether mise reads the key */
+  known: boolean;
+  /** the known key it most likely meant */
+  suggestion: string | null;
+}
+
+export interface ConfigProblem {
+  kind: "unknown" | "deprecated";
+  /** dotted key, e.g. `settings.experimantal` */
+  key: string;
+  /** 1-based */
+  line: number;
+  message: string;
+  suggestion?: string;
+}
+
+/** What a deprecated key's description says to do: `use env._.file instead.` out of `… Deprecated; use env._.file instead.` */
+function deprecationAdvice(description: string | null): string | undefined {
+  const text = description?.replace(/^\s*\[deprecated\]\s*/i, "").trim();
+  if (!text) return undefined;
+  return text.match(/\bdeprecated\b[;:,.]?\s*(.+)$/i)?.[1]?.trim() ?? text;
+}
+
+/** The keys of a TOML config file that mise does not read (e.g. a typo) or reads but deprecates. */
+export async function listConfigProblems(file: string): Promise<ConfigProblem[]> {
+  const keys = await runMiseJson<ConfigKeyExplanation[]>(["config", "explain", "--file", file]);
+  return keys.flatMap((k): ConfigProblem[] => {
+    if (!k.known) {
+      // mise suggests `_`, the env directives, for any short unknown key
+      const suggestion = k.suggestion && k.suggestion !== "_" ? k.suggestion : undefined;
+      const hint = suggestion ? ` Did you mean \`${suggestion}\`?` : "";
+      return [
+        { kind: "unknown", key: k.key, line: k.line, message: `mise does not read \`${k.key}\`.${hint}`, suggestion },
+      ];
+    }
+    if (!k.deprecated) return [];
+    const advice = deprecationAdvice(k.description);
+    return [
+      {
+        kind: "deprecated",
+        key: k.key,
+        line: k.line,
+        message: `\`${k.key}\` is deprecated${advice ? `: ${advice}` : "."}`,
+      },
+    ];
+  });
+}
+
+export interface MiseUpdate {
+  current: string;
+  latest: string;
+  /** false when a package manager installed mise, so `mise self-update` cannot replace it */
+  canSelfUpdate: boolean;
+}
+
+/** Whether calendar version `a` (e.g. 2026.11.10) is newer than `b`. */
+export function isNewerVersion(a: string, b: string): boolean {
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d > 0;
+  }
+  return false;
+}
+
+const settingIs = (key: string, value: string) =>
+  runMise(["settings", "get", key])
+    .then((out) => out.trim() === value)
+    .catch(() => false);
+
+/**
+ * A newer mise release, unless the user turned the warning off (`disable_update_warning`)
+ * or mise updates itself (`self_update.auto`).
+ */
+export async function checkMiseUpdate(): Promise<MiseUpdate | undefined> {
+  const version = await runMiseJson<{ version: string; latest?: string | null }>(["version"]);
+  // "2026.11.9 macos-arm64 (2026-11-16)"
+  const current = version.version.split(" ")[0] ?? "";
+  const latest = version.latest?.trim();
+  if (!latest || !current || !isNewerVersion(latest, current)) return undefined;
+  if (await settingIs("disable_update_warning", "true")) return undefined;
+  const doctor = await runMiseJson<{ self_update_available?: boolean }>(["doctor"], { tolerateFailure: true }).catch(
+    () => ({}) as { self_update_available?: boolean },
+  );
+  const canSelfUpdate = doctor.self_update_available === true;
+  if (canSelfUpdate && (await settingIs("self_update.auto", "true"))) return undefined;
+  return { current, latest, canSelfUpdate };
+}
+
+export const MISE_UPDATE_DOCS_URL = "https://mise.jdx.dev/cli/self-update.html";
+export const MISE_CHANGELOG_URL = "https://github.com/jdx/mise/releases";
 
 /** `mise daemons` is experimental; enable it for these calls only. */
 export const DAEMON_ENV = { MISE_EXPERIMENTAL: "1", PITCHFORK_SUPERVISOR_AUTO_START: "false" };

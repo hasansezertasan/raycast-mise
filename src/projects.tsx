@@ -16,7 +16,7 @@ import { showFailureToast, usePromise } from "@raycast/utils";
 import { statSync } from "node:fs";
 import { sep } from "node:path";
 import { StateEmptyView } from "./lib/empty-view";
-import { getTrustStatus, listConfigFiles, runMise } from "./lib/mise";
+import { ConfigProblem, getTrustStatus, listConfigFiles, listConfigProblems, runMise } from "./lib/mise";
 import {
   addProject,
   GLOBAL_PROJECT,
@@ -101,7 +101,46 @@ function BootstrapAction({ project }: { project: string }) {
   );
 }
 
-/** The config files mise loads for a project, with their trust status. */
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** The keys of a config file that mise ignores or deprecates, from `mise config explain`. */
+function ConfigProblems({ path, problems }: { path: string; problems: ConfigProblem[] }) {
+  return (
+    <List navigationTitle={`Problems: ${tildify(path)}`}>
+      {problems.map((problem) => (
+        <List.Item
+          key={`${problem.line}:${problem.key}`}
+          icon={
+            problem.kind === "unknown"
+              ? { source: Icon.Warning, tintColor: Color.Orange }
+              : { source: Icon.Clock, tintColor: Color.SecondaryText }
+          }
+          title={problem.key}
+          subtitle={problem.message}
+          accessories={[
+            { tag: problem.kind === "unknown" ? "Unknown" : "Deprecated" },
+            { text: `Line ${problem.line}` },
+          ]}
+          actions={
+            <ActionPanel>
+              <Action.Open title="Open Config File" target={path} />
+              {problem.suggestion ? (
+                <Action.CopyToClipboard title="Copy Suggested Key" content={problem.suggestion} />
+              ) : null}
+              <Action.CopyToClipboard title="Copy Key" content={problem.key} />
+              <Action.CopyToClipboard
+                title="Copy Message"
+                content={`${tildify(path)}:${problem.line}: ${problem.message}`}
+              />
+            </ActionPanel>
+          }
+        />
+      ))}
+    </List>
+  );
+}
+
+/** The config files mise loads for a project, with their trust status and key problems. */
 function ConfigFiles({ project }: { project: string }) {
   const cwd = projectCwd(project);
   const { isLoading, data, error, revalidate } = usePromise(
@@ -110,7 +149,7 @@ function ConfigFiles({ project }: { project: string }) {
         listConfigFiles(dir),
         dir ? getTrustStatus(dir).catch(() => []) : Promise.resolve([]),
       ]);
-      return files.map((file) => {
+      const withTrust = files.map((file) => {
         // `mise trust --show` lists config folders; match the file or its folder
         // the longest matching folder wins, so a subfolder's own status beats its parent's
         const status = trust
@@ -118,6 +157,15 @@ function ConfigFiles({ project }: { project: string }) {
           .sort((a, b) => b.path.length - a.path.length)[0];
         return { ...file, trusted: status?.trusted };
       });
+      // only TOML files can be explained; undefined when mise is too old for `mise config explain`
+      return Promise.all(
+        withTrust.map(async (file) => ({
+          ...file,
+          problems: file.path.endsWith(".toml")
+            ? await listConfigProblems(file.path).catch(() => undefined)
+            : undefined,
+        })),
+      );
     },
     [cwd],
   );
@@ -148,6 +196,14 @@ function ConfigFiles({ project }: { project: string }) {
           subtitle={file.tools.length > 0 ? file.tools.join(", ") : undefined}
           accessories={[
             ...(file.override ? [{ tag: "Override" }] : []),
+            ...(file.problems?.length
+              ? [
+                  {
+                    tag: { value: plural(file.problems.length, "Problem"), color: Color.Orange },
+                    tooltip: file.problems.map((p) => `Line ${p.line}: ${p.message}`).join("\n"),
+                  },
+                ]
+              : []),
             ...(file.trusted === false
               ? [{ tag: { value: "Untrusted", color: Color.Red } }]
               : file.trusted
@@ -157,6 +213,13 @@ function ConfigFiles({ project }: { project: string }) {
           actions={
             <ActionPanel>
               <Action.Open title="Open Config File" target={file.path} />
+              {file.problems?.length ? (
+                <Action.Push
+                  title="Show Problems"
+                  icon={Icon.Warning}
+                  target={<ConfigProblems path={file.path} problems={file.problems} />}
+                />
+              ) : null}
               <Action.ShowInFinder path={file.path} />
               {file.trusted === false ? (
                 <Action

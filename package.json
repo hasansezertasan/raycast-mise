@@ -95,6 +95,14 @@
       "description": "Path to the mise executable. Leave empty to find it automatically."
     },
     {
+      "name": "miseEnv",
+      "type": "textfield",
+      "required": false,
+      "title": "Mise Environment",
+      "placeholder": "staging",
+      "description": "The MISE_ENV profile, e.g. staging, so that mise also loads mise.staging.toml. Separate several with commas. Leave empty for none."
+    },
+    {
       "name": "showEnvValues",
       "type": "checkbox",
       "required": false,
@@ -102,6 +110,15 @@
       "title": "Environment Variables",
       "label": "Show values by default",
       "description": "Show environment variable values without revealing them one by one. Values can contain secrets."
+    },
+    {
+      "name": "trustOwnEdits",
+      "type": "checkbox",
+      "required": false,
+      "default": false,
+      "title": "Paranoid Mode",
+      "label": "Trust config files again after editing them here",
+      "description": "In mise paranoid mode, changing a project setting from this extension makes mise stop trusting the config file. When on, a file that was trusted before the change is trusted again."
     }
   ],
   "dependencies": {

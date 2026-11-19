@@ -277,6 +277,21 @@ export default function Command() {
                   }
                 />
               ) : null}
+              {outdated ? (
+                <Action.Push
+                  title="Upgrade and Keep Old Version"
+                  icon={Icon.ArrowUpCircle}
+                  target={
+                    <StreamedRun
+                      title={`mise upgrade --no-prune ${name}`}
+                      args={["upgrade", "--no-prune", name]}
+                      cwd={cwd}
+                      project={project}
+                      onSuccess={onSuccess}
+                    />
+                  }
+                />
+              ) : null}
             </ActionPanel.Section>
             <ActionPanel.Section>
               {hasMissing ? (

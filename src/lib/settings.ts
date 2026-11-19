@@ -1,4 +1,4 @@
-import { runMise } from "./mise";
+import { keepingTrust, runMise } from "./mise";
 
 export interface SettingRow {
   key: string;
@@ -62,13 +62,18 @@ export function editableValue(row: SettingRow): string {
   return formatSettingValue(row.value);
 }
 
-export async function setSetting(key: string, value: string, local: boolean, cwd?: string): Promise<void> {
-  await runMise(["settings", "set", ...(local ? ["--local"] : []), key, value], { cwd });
+/** Runs `mise settings <action>`; returns the project config files the write made lose their trust. */
+async function writeSetting(action: "set" | "unset", rest: string[], local: boolean, cwd?: string): Promise<string[]> {
+  const run = () => runMise(["settings", action, ...(local ? ["--local"] : []), ...rest], { cwd });
+  if (local && cwd) return keepingTrust(cwd, run);
+  await run();
+  return [];
 }
 
-export async function unsetSetting(key: string, local: boolean, cwd?: string): Promise<void> {
-  await runMise(["settings", "unset", ...(local ? ["--local"] : []), key], { cwd });
-}
+export const setSetting = (key: string, value: string, local: boolean, cwd?: string) =>
+  writeSetting("set", [key, value], local, cwd);
+
+export const unsetSetting = (key: string, local: boolean, cwd?: string) => writeSetting("unset", [key], local, cwd);
 
 export function settingsDocsUrl(key: string): string {
   return `https://mise.jdx.dev/configuration/settings.html#${key}`;
