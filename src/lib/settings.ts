@@ -19,7 +19,8 @@ interface RawLeaf {
 function isLeaf(node: unknown): node is RawLeaf {
   if (typeof node !== "object" || node === null || Array.isArray(node)) return false;
   const n = node as Record<string, unknown>;
-  return "value" in n && typeof n.type === "string" && typeof n.description === "string";
+  // mise adds `description` only for settings it has metadata for, so a leaf is `value` + `type`
+  return "value" in n && typeof n.type === "string";
 }
 
 function flatten(node: Record<string, unknown>, prefix: string, out: SettingRow[]) {
